@@ -6,34 +6,39 @@ const COMMANDS = ['atras', 'adelante', 'izquierda', 'derecha', 'agarrar'];
 // -----------------------
 // SISTEMA MEJORADO - COLA DE COMANDOS
 // -----------------------
-let commandQueue = [];
-let isProcessing = false;
+let commandQueue = []; // 👈 NUEVA: Esta es nuestra cola de comandos
+let isProcessing = false; // 👈 NUEVA: Controla si la cola ya está procesando un comando
 
 // Función para procesar la cola de comandos
 const processQueue = async (player, board) => {
+    // Si ya estamos procesando o no hay comandos en la cola, no hacer nada
     if (isProcessing || commandQueue.length === 0) {
         return;
     }
-    isProcessing = true;
+
+    isProcessing = true; // Bloqueamos el procesador de la cola
+
     while (commandQueue.length > 0) {
-        const nextCommand = commandQueue.shift();
+        const nextCommand = commandQueue.shift(); // Tomamos el primer comando de la cola
         console.log(`>>> Procesando comando de la cola: ${nextCommand}`);
+
         try {
+            // Ejecutamos el comando y esperamos a que termine
             await doCommand(nextCommand, player, board);
         } catch (err) {
             console.error('Error al procesar comando de la cola:', err);
-            isProcessing = false;
-            return;
         }
     }
-    isProcessing = false;
-    console.log('>>> Cola de comandos vacía. Procesador inactivo.', commandQueue.length);
+
+    isProcessing = false; // Desbloqueamos el procesador de la cola
+    console.log('>>> Cola de comandos vacía. Procesador inactivo.');
 };
 
-// Función simple para ejecutar UN comando
+// Función simple para ejecutar UN comando (ahora sin lógica de bloqueo)
 const doCommand = async (command, player, board) => {
-
     console.log(`>>> INICIANDO COMANDO: ${command}`);
+
+    // Verificar que el player existe
     if (!player || !player.boardTile) {
         console.log('ERROR: Player no válido');
         return;
@@ -43,25 +48,31 @@ const doCommand = async (command, player, board) => {
     const currentRow = player.boardRow;
     console.log(`Posición actual: (${currentCol}, ${currentRow})`);
 
+    // PROCESAR COMANDO
     if (command === 'agarrar') {
         console.log('Ejecutando AGARRAR...');
         const items = board.getItems(player.boardTile);
-        if (currentCol===7 && currentRow===6 || currentCol===6 && currentRow===7) {
+        if (items.length && items[0].orb && !items[0].orb.visible) {
+            items[0].cover.vis(false);
+            items[0].orb.vis(true);
+            S.update();
             console.log('¡ORBE RECOGIDO!');
         } else {
             console.log('Nada que agarrar aquí.');
         }
+        // Pausa y desbloquear
         await new Promise(r => setTimeout(r, 800));
         console.log('>>> COMANDO AGARRAR COMPLETADO');
         return;
     }
 
-    let newCol=player.boardCol;
-    let newRow=player.boardRow;
+    // CALCULAR NUEVA POSICIÓN
+    let newCol = currentCol;
+    let newRow = currentRow;
 
     switch (command) {
-        case 'adelante': newRow = currentRow +1 ; break;
-        case 'atras': newRow = currentRow - 1; break;
+        case 'adelante': newRow = currentRow - 1; break;
+        case 'atras': newRow = currentRow + 1; break;
         case 'izquierda': newCol = currentCol - 1; break;
         case 'derecha': newCol = currentCol + 1; break;
         default:
@@ -70,7 +81,8 @@ const doCommand = async (command, player, board) => {
     }
 
     console.log(`Intentando mover a: (${newCol}, ${newRow})`);
-    
+
+    // VERIFICAR LÍMITES
     if (newCol < 0 || newCol >= board.cols || newRow < 0 || newRow >= board.rows) {
         console.log('MOVIMIENTO INVÁLIDO: Fuera del tablero');
         await new Promise(r => setTimeout(r, 500));
@@ -78,10 +90,10 @@ const doCommand = async (command, player, board) => {
         return;
     }
 
+    // VERIFICAR OBSTÁCULOS
     const targetTile = board.getTile(newCol, newRow);
-    console.log(`Tile objetivo: (${newCol}, ${newRow})`, targetTile);
     const tileData = board.getData(targetTile);
-    console.log('Datos del tile objetivo:', tileData);
+    
     if (tileData === OBSTACLE || tileData === LANTERN) {
         console.log('MOVIMIENTO INVÁLIDO: Hay un obstáculo');
         await new Promise(r => setTimeout(r, 500));
@@ -89,23 +101,35 @@ const doCommand = async (command, player, board) => {
         return;
     }
 
+    // EJECUTAR MOVIMIENTO VÁLIDO
     console.log('EJECUTANDO MOVIMIENTO...');
     
-
-    // Actualizamos manualmente la posición del jugador después de la animación
-   
-    board.moveTo(player, newCol, newRow);
-    console.log('board',board)
-
-   
-
+    // Esperar que termine cualquier movimiento previo
+    while (player.moving) {
+        console.log('Esperando que termine movimiento anterior...');
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
+    // Hacer el movimiento
+    board.move(player, newCol, newRow);
+    console.log('Movimiento iniciado...');
+    
+    // Esperar a que el movimiento termine completamente
+    while (player.moving) {
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
     console.log(`MOVIMIENTO COMPLETADO. Nueva posición: (${player.boardCol}, ${player.boardRow})`);
     
+    // Pausa adicional para asegurar que todo esté estable
     await new Promise(r => setTimeout(r, 300));
     
     console.log('>>> COMANDO COMPLETADO');
 };
 
+// -----------------------
+// Funciones para obstáculos y posiciones fijas
+// -----------------------
 const easyStar = new EasyStar.js();
 
 const isPathAvailable = (grid, startCol, startRow, goalCol, goalRow) => {
@@ -140,32 +164,38 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
             grid[row][col] = 'o';
             obstacles.push([col, row]);
         }
+
         const pathExists = await isPathAvailable(grid, playerPos[0], playerPos[1], orbPos[0], orbPos[1]);
         if (pathExists) return { playerPos, orbPos, obstacles };
     }
 };
 
+// -----------------------
+// Inicio del juego
+// -----------------------
 const startGame = async () => {
     new Label({ text: 'Orbs of Order', size: 70, font: 'Macondo Swash Caps', color: purple }).loc(30, 30);
+
     const board = new Board({ backgroundColor: grey, indicatorBorderColor: light }).center();
     const cols = 8;
     const rows = 8;
+
     const { playerPos, orbPos, obstacles } = await generateBoardElements(cols, rows, 0.5);
 
+    // Player setup
     const pic = new Pic('person.png');
-    // <--- Cambio aquí: Se crea el personaje localmente en la función
     const player = new Container(pic.width, pic.height).reg(CENTER, pic.height - 30).sca(0.5);
     pic.centerReg(player);
-    
-    // <--- Cambio aquí: Se agrega el personaje al tablero y se inicializa la posición
-    board.add(player, playerPos[0], playerPos[0]);
-    
+    board.add(player, playerPos[0], playerPos[1]);
+
+    // Trees
     const transparentTreePositions = [[4, 3], [5, 7]];
     loop(transparentTreePositions, pos => board.add(new Tree().alp(0.8), pos[0], pos[1]));
 
     const treePositions = [[0, 5], [5, 0]];
     loop(treePositions, pos => board.add(new Tree(), pos[0], pos[1]));
 
+    // Orb
     const orbColor = yellow;
     new Circle({ radius: 20, color: orbColor }).pos({ x: 40, y: 40, horizontal: RIGHT, vertical: BOTTOM });
     new Label({ text: 'Find and reveal the orb!', size: 40, font: 'Macondo Swash Caps', color: 'purple' }).loc({ x: 70, y: 690 });
@@ -181,12 +211,16 @@ const startGame = async () => {
     lantern.orb.vis(false);
     board.add(lantern, orbPos[0], orbPos[1], LANTERN);
 
+    // Obstáculos
     loop(obstacles, pos => {
         const tile = board.getTile(pos[0], pos[1]);
         board.setColor(tile, dark);
         board.setData(tile, OBSTACLE);
     });
 
+    // -----------------------
+    // BOTONES SUPER SIMPLES
+    // -----------------------
     const controlsContainer = document.createElement('div');
     controlsContainer.style.cssText = `
         position: absolute;
@@ -199,9 +233,11 @@ const startGame = async () => {
         justify-content: center;
     `;
     document.body.appendChild(controlsContainer);
-    controlsContainer.innerHTML = '';
+
+    // Variable para rastrear botones
     const buttons = [];
 
+    // Crear botones
     COMMANDS.forEach(cmd => {
         const btn = document.createElement('button');
         btn.innerText = cmd.toUpperCase();
@@ -218,13 +254,18 @@ const startGame = async () => {
             user-select: none;
         `;
         
-        // <--- Cambio aquí: La función ahora solo añade el comando a la cola y luego llama a addCommand
+        // EVENTO DE CLICK MEJORADO
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopImmediatePropagation();
+            
             console.log(`\n=== CLICK EN BOTÓN: ${cmd} ===`);
+            
+            // 👈 CAMBIO CLAVE: En lugar de bloquear, añadimos el comando a la cola
             commandQueue.push(cmd);
             console.log(`Comando '${cmd}' añadido a la cola. Cola actual:`, commandQueue);
+            
+            // 👈 NUEVO: Llamamos a la función que procesa la cola
             processQueue(player, board);
         });
         
@@ -240,6 +281,9 @@ const startGame = async () => {
         buttons.push(btn);
     });
 
+    // -----------------------
+    // PANEL DE DEBUG
+    // -----------------------
     const debugPanel = document.createElement('div');
     debugPanel.style.cssText = `
         position: absolute;
@@ -255,7 +299,9 @@ const startGame = async () => {
     `;
     document.body.appendChild(debugPanel);
 
+    // Actualizar debug cada 100ms
     setInterval(() => {
+        // 👈 CAMBIO: Ahora mostramos el estado de la cola
         const queueStatus = commandQueue.length > 0 ? `🔴 ${commandQueue.length} PENDIENTES` : '🟢 VACÍA';
         const playerMoving = player.moving ? '🔴 MOVIENDO' : '🟢 QUIETO';
         
@@ -271,6 +317,7 @@ const startGame = async () => {
             Procesador: ${isProcessing ? '🔴 ACTIVO' : '🟢 INACTIVO'}
         `;
         
+        // Actualizar visual de botones
         buttons.forEach(btn => {
             if (isProcessing) {
                 btn.style.backgroundColor = '#666';
@@ -284,6 +331,7 @@ const startGame = async () => {
         });
     }, 100);
 
+    // Reset button (por si algo sale mal)
     const resetBtn = document.createElement('button');
     resetBtn.innerText = '🔄 RESET';
     resetBtn.style.cssText = `
@@ -303,9 +351,11 @@ const startGame = async () => {
         console.log('SISTEMA DESBLOQUEADO MANUALMENTE Y COLA VACIADA');
     };
     document.body.appendChild(resetBtn);
+
     console.log('🎮 JUEGO INICIADO - Sistema de cola de comandos activo');
 };
 
+// -----------------------
 const ready = () => {
     new Pane({
         content: new Label({ text: 'Welcome clever traveler!', size: 70, font: 'Macondo Swash Caps', color: 'yellow' }).noMouse(),

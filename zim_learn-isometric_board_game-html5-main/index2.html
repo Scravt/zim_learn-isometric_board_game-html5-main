@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbs of Order - Versión Canvas</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        h1 {
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 20px 0;
+            font-size: 2.5em;
+        }
+        
+        #gameCanvas {
+            border: 3px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            background: #f0f0f0;
+        }
+        
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .control-btn {
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 120px;
+        }
+        
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(145deg, #45a049, #4CAF50);
+        }
+        
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+        
+        #status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 250px;
+        }
+        
+        .message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            min-height: 20px;
+        }
+        
+        .message.success { background: #4CAF50; color: white; }
+        .message.error { background: #f44336; color: white; }
+        .message.info { background: #2196F3; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🌟 Orbs of Order 🌟</h1>
+    <canvas id="gameCanvas" width="640" height="640"></canvas>
+    
+    <div id="controls">
+        <button class="control-btn" data-command="adelante">⬆️ ADELANTE</button>
+        <button class="control-btn" data-command="atras">⬇️ ATRÁS</button>
+        <button class="control-btn" data-command="izquierda">⬅️ IZQUIERDA</button>
+        <button class="control-btn" data-command="derecha">➡️ DERECHA</button>
+        <button class="control-btn" data-command="agarrar">✋ AGARRAR</button>
+    </div>
+    
+    <div class="message" id="message">¡Encuentra y recoge el orbe dorado!</div>
+    
+    <div id="status">
+        <strong>📊 ESTADO</strong><br>
+        <span id="statusText">Esperando...</span>
+    </div>
+    
+    <div id="instructions">
+        <strong>📋 INSTRUCCIONES</strong><br>
+        • Mueve al personaje con los botones<br>
+        • Evita los obstáculos (casillas oscuras)<br>
+        • Encuentra la linterna dorada<br>
+        • Usa AGARRAR para revelar el orbe<br>
+        • ¡Un comando a la vez!
+    </div>
+
+    <script>
+        class OrbsGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.gridSize = 8;
+                this.tileSize = 80;
+                this.isExecuting = false;
+                
+                // Posiciones del juego
+                this.playerPos = { x: 0, y: 0 };
+                this.orbPos = { x: 7, y: 7 };
+                this.obstacles = [];
+                this.orbFound = false;
+                this.orbVisible = false;
+                
+                // Animation
+                this.animationFrame = null;
+                this.moveProgress = 0;
+                this.isMoving = false;
+                this.moveStart = { x: 0, y: 0 };
+                this.moveEnd = { x: 0, y: 0 };
+                
+                this.init();
+            }
+            
+            init() {
+                this.generateObstacles();
+                this.setupControls();
+                this.updateStatus();
+                this.render();
+                this.showMessage('¡Bienvenido! Encuentra el orbe dorado.', 'info');
+            }
+            
+            generateObstacles() {
+                // Generar obstáculos aleatorios pero asegurar que hay camino
+                const numObstacles = 15;
+                this.obstacles = [];
+                
+                for (let i = 0; i < numObstacles; i++) {
+                    let x, y;
+                    do {
+                        x = Math.floor(Math.random() * this.gridSize);
+                        y = Math.floor(Math.random() * this.gridSize);
+                    } while (
+                        (x === this.playerPos.x && y === this.playerPos.y) ||
+                        (x === this.orbPos.x && y === this.orbPos.y) ||
+                        this.obstacles.some(obs => obs.x === x && obs.y === y)
+                    );
+                    
+                    this.obstacles.push({ x, y });
+                }
+            }
+            
+            setupControls() {
+                const buttons = document.querySelectorAll('.control-btn');
+                
+                buttons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const command = btn.dataset.command;
+                        console.log(`🎮 Click en: ${command}`);
+                        
+                        if (this.isExecuting) {
+                            console.log('❌ Comando ignorado - ya ejecutando');
+                            this.showMessage('¡Espera! Comando en ejecución...', 'error');
+                            return;
+                        }
+                        
+                        this.executeCommand(command);
+                    });
+                });
+            }
+            
+            async executeCommand(command) {
+                if (this.isExecuting) return;
+                
+                this.isExecuting = true;
+                this.disableButtons();
+                this.updateStatus();
+                
+                console.log(`🚀 Ejecutando: ${command}`);
+                
+                try {
+                    switch (command) {
+                        case 'adelante':
+                            await this.movePlayer(0, -1);
+                            break;
+                        case 'atras':
+                            await this.movePlayer(0, 1);
+                            break;
+                        case 'izquierda':
+                            await this.movePlayer(-1, 0);
+                            break;
+                        case 'derecha':
+                            await this.movePlayer(1, 0);
+                            break;
+                        case 'agarrar':
+                            await this.grabOrb();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error ejecutando comando:', error);
+                }
+                
+                // Pausa antes de permitir siguiente comando
+                await this.sleep(200);
+                
+                this.isExecuting = false;
+                this.enableButtons();
+                this.updateStatus();
+                
+                console.log(`✅ Comando ${command} completado`);
+            }
+            
+            async movePlayer(dx, dy) {
+                const newX = this.playerPos.x + dx;
+                const newY = this.playerPos.y + dy;
+                
+                // Verificar límites
+                if (newX < 0 || newX >= this.gridSize || newY < 0 || newY >= this.gridSize) {
+                    this.showMessage('¡No puedes salir del tablero!', 'error');
+                    await this.sleep(500);
+                    return;
+                }
+                
+                // Verificar obstáculos
+                if (this.obstacles.some(obs => obs.x === newX && obs.y === newY)) {
+                    this.showMessage('¡Hay un obstáculo ahí!', 'error');
+                    await this.sleep(500);
+                    return;
+                }
+                
+                // Verificar orbe (no se puede pasar por encima)
+                if (newX === this.orbPos.x && newY === this.orbPos.y) {
+                    this.showMessage('¡Hay algo ahí! Usa AGARRAR para investigar.', 'error');
+                    await this.sleep(500);
+                    return;
+                }
+                
+                // Ejecutar movimiento válido
+                await this.animateMove(newX, newY);
+                this.playerPos.x = newX;
+                this.playerPos.y = newY;
+                
+                this.showMessage(`Posición: (${newX}, ${newY})`, 'info');
+            }
+            
+            async animateMove(newX, newY) {
+                this.isMoving = true;
+                this.moveStart = { x: this.playerPos.x, y: this.playerPos.y };
+                this.moveEnd = { x: newX, y: newY };
+                this.moveProgress = 0;
+                
+                return new Promise(resolve => {
+                    const animate = () => {
+                        this.moveProgress += 0.08; // Velocidad de animación
+                        
+                        if (this.moveProgress >= 1) {
+                            this.moveProgress = 1;
+                            this.isMoving = false;
+                            this.render();
+                            resolve();
+                        } else {
+                            this.render();
+                            requestAnimationFrame(animate);
+                        }
+                    };
+                    animate();
+                });
+            }
+            
+            async grabOrb() {
+                // Verificar si está en la posición del orbe
+                if (this.playerPos.x === this.orbPos.x && this.playerPos.y === this.orbPos.y) {
+                    if (!this.orbVisible) {
+                        this.orbVisible = true;
+                        this.orbFound = true;
+                        this.showMessage('¡🎉 FELICITACIONES! ¡Has encontrado el orbe dorado!', 'success');
+                        this.render();
+                        await this.sleep(1000);
+                        this.showMessage('¡Juego completado! 🏆', 'success');
+                    } else {
+                        this.showMessage('¡Ya tienes el orbe!', 'info');
+                    }
+                } else {
+                    this.showMessage('No hay nada que agarrar aquí.', 'error');
+                    await this.sleep(500);
+                }
+            }
+            
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Dibujar grid
+                this.drawGrid();
+                
+                // Dibujar obstáculos
+                this.drawObstacles();
+                
+                // Dibujar orbe
+                this.drawOrb();
+                
+                // Dibujar jugador
+                this.drawPlayer();
+            }
+            
+            drawGrid() {
+                this.ctx.strokeStyle = '#ddd';
+                this.ctx.lineWidth = 1;
+                
+                for (let i = 0; i <= this.gridSize; i++) {
+                    // Líneas verticales
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(i * this.tileSize, 0);
+                    this.ctx.lineTo(i * this.tileSize, this.gridSize * this.tileSize);
+                    this.ctx.stroke();
+                    
+                    // Líneas horizontales
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, i * this.tileSize);
+                    this.ctx.lineTo(this.gridSize * this.tileSize, i * this.tileSize);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawObstacles() {
+                this.ctx.fillStyle = '#333';
+                this.obstacles.forEach(obs => {
+                    this.ctx.fillRect(
+                        obs.x * this.tileSize + 5,
+                        obs.y * this.tileSize + 5,
+                        this.tileSize - 10,
+                        this.tileSize - 10
+                    );
+                });
+            }
+            
+            drawOrb() {
+                const x = this.orbPos.x * this.tileSize + this.tileSize / 2;
+                const y = this.orbPos.y * this.tileSize + this.tileSize / 2;
+                
+                if (this.orbVisible) {
+                    // Orbe dorado visible
+                    const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, 25);
+                    gradient.addColorStop(0, '#FFD700');
+                    gradient.addColorStop(0.7, '#FFA500');
+                    gradient.addColorStop(1, '#FF8C00');
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 25, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    // Brillo
+                    this.ctx.fillStyle = '#FFFF00';
+                    this.ctx.beginPath();
+                    this.ctx.arc(x - 8, y - 8, 8, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                } else {
+                    // Linterna misteriosa
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(x - 15, y - 20, 30, 40);
+                    
+                    this.ctx.fillStyle = '#DAA520';
+                    this.ctx.fillRect(x - 12, y - 15, 24, 10);
+                    
+                    // Texto de pista
+                    this.ctx.fillStyle = '#666';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('?', x, y + 35);
+                }
+            }
+            
+            drawPlayer() {
+                let playerX = this.playerPos.x;
+                let playerY = this.playerPos.y;
+                
+                // Aplicar interpolación si está en movimiento
+                if (this.isMoving) {
+                    const t = this.easeInOut(this.moveProgress);
+                    playerX = this.moveStart.x + (this.moveEnd.x - this.moveStart.x) * t;
+                    playerY = this.moveStart.y + (this.moveEnd.y - this.moveStart.y) * t;
+                }
+                
+                const x = playerX * this.tileSize + this.tileSize / 2;
+                const y = playerY * this.tileSize + this.tileSize / 2;
+                
+                // Cuerpo
+                this.ctx.fillStyle = '#4CAF50';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 20, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                // Cara
+                this.ctx.fillStyle = '#FFE0B2';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y - 5, 15, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                // Ojos
+                this.ctx.fillStyle = '#333';
+                this.ctx.fillRect(x - 8, y - 10, 3, 3);
+                this.ctx.fillRect(x + 5, y - 10, 3, 3);
+                
+                // Sonrisa
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y - 5, 8, 0.2 * Math.PI, 0.8 * Math.PI);
+                this.ctx.stroke();
+            }
+            
+            easeInOut(t) {
+                return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            }
+            
+            disableButtons() {
+                document.querySelectorAll('.control-btn').forEach(btn => {
+                    btn.disabled = true;
+                });
+            }
+            
+            enableButtons() {
+                document.querySelectorAll('.control-btn').forEach(btn => {
+                    btn.disabled = false;
+                });
+            }
+            
+            updateStatus() {
+                const statusElement = document.getElementById('statusText');
+                const status = this.isExecuting ? '🔴 EJECUTANDO' : '🟢 ESPERANDO';
+                const moving = this.isMoving ? '🏃 MOVIENDO' : '🧍 QUIETO';
+                const orb = this.orbFound ? '✅ ENCONTRADO' : '❓ BUSCANDO';
+                
+                statusElement.innerHTML = `
+                    Sistema: ${status}<br>
+                    Jugador: ${moving}<br>
+                    Posición: (${this.playerPos.x}, ${this.playerPos.y})<br>
+                    Orbe: ${orb}
+                `;
+            }
+            
+            showMessage(text, type = 'info') {
+                const messageEl = document.getElementById('message');
+                messageEl.textContent = text;
+                messageEl.className = `message ${type}`;
+            }
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        // Inicializar juego cuando la página carga
+        window.addEventListener('load', () => {
+            console.log('🎮 Iniciando Orbs of Order...');
+            new OrbsGame();
+        });
+    </script>
+</body>
+</html>
