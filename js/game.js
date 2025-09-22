@@ -258,7 +258,7 @@ const startGame = async () => {
     const lantern = new Container({ width: cover.width, height: cover.height });
     cover.addTo(lantern);
     orb.center(lantern);
-    lantern.reg(lantern.width +1050, lantern.height +750 ).sca(0.2);
+    lantern.reg(lantern.width +1050, lantern.height +750 ).sca(0.16);
     lantern.cover = cover;
     lantern.orb = orb;
     lantern.orb.vis(false);
