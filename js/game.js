@@ -9,6 +9,26 @@ let moveCounter = 0;
 let moveCounterCard;
 
 // -----------------------
+// FUNCIÓN PARA LANZAR CONFETTI
+// -----------------------
+const lanzarConfetti = () => {
+    const duration = 3000; // 3 segundos
+    const end = Date.now() + duration;
+
+    const frame = () => {
+        confetti({
+            particleCount: 5,
+            spread: 120,
+            origin: { x: Math.random(), y: Math.random() - 0.2 }
+        });
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    };
+    frame();
+};
+
+// -----------------------
 // PROCESAMIENTO SECUENCIAL DE COMANDOS
 // -----------------------
 const processQueue = async (player, board) => {
@@ -16,7 +36,6 @@ const processQueue = async (player, board) => {
     isProcessing = true;
     while (commandQueue.length > 0) {
         const nextCommand = commandQueue.shift();
-       // updateQueueDisplay();
         await doCommand(nextCommand, player, board);
         await new Promise(r => setTimeout(r, 500));
     }
@@ -34,6 +53,21 @@ const doCommand = async (command, player, board) => {
     if (command === 'agarrar') {
         if ((currentCol === 7 && currentRow === 6) || (currentCol === 6 && currentRow === 7)) {
             console.log('¡ORBE RECOGIDO!');
+
+            // Lanzar confetti en toda la pantalla
+            lanzarConfetti();
+
+            // Mostrar Pane de victoria
+            new Pane({
+                content: new Label({
+                    text: 'Felicitaciones. Has conseguido el tesoro en: ' + moveCounter + ' movimientos',
+                    size: 50,
+                    font: 'Macondo Swash Caps',
+                    color: 'yellow',
+                    lineWidth: 500
+                }).noMouse(),
+                backgroundColor: purple
+            }).show();
         }
         await new Promise(r => setTimeout(r, 800));
         return;
@@ -55,7 +89,7 @@ const doCommand = async (command, player, board) => {
     if (tileData === OBSTACLE || tileData === LANTERN) return;
 
     board.moveTo(player, newCol, newRow);
-    
+
     await new Promise(r => setTimeout(r, 300));
 };
 
@@ -97,18 +131,15 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
 // INICIO DEL JUEGO
 // -----------------------
 const startGame = async () => {
-    new Label({ text: 'Orbs of Order', size: 50, font: 'Macondo Swash Caps', color: purple }).loc(20, 20);
+    new Label({ text: 'Aventura en la Evita', size: 50, font: 'Macondo Swash Caps', color: purple }).loc(20, 20);
 
     const cols = 8;
     const rows = 8;
     const { playerPos, orbPos, obstacles } = await generateBoardElements(cols, rows, 0.5);
 
-    // -----------------------
-    // TABLERO ESCALADO
-    // -----------------------
     const boardWidth = 600;
     const boardHeight = 600;
-    const scaleFactor = 0.7; // reduce tablero manteniendo proporciones
+    const scaleFactor = 0.7;
     const board = new Board({
         backgroundColor: grey,
         indicatorBorderColor: light,
@@ -121,7 +152,6 @@ const startGame = async () => {
     pic.centerReg(player);
     board.add(player, playerPos[0], playerPos[0]);
 
-    // Árboles traslúcidos
     obstacles.forEach(pos => {
         const tile = board.getTile(pos[0], pos[1]);
         board.setColor(tile, dark);
@@ -131,7 +161,6 @@ const startGame = async () => {
         board.add(tree, pos[0], pos[1]);
     });
 
-    // Orb
     const cover = new Pic('lantern.png');
     const orb = new Orb({ radius: cover.width * 0.3, color: yellow });
     const lantern = new Container({ width: cover.width, height: cover.height });
@@ -143,9 +172,6 @@ const startGame = async () => {
     lantern.orb.vis(false);
     board.add(lantern, orbPos[0], orbPos[1], LANTERN);
 
-    // -----------------------
-    // PANEL LATERAL DE COMANDOS
-    // -----------------------
     const sidePanel = document.createElement('div');
     sidePanel.style.cssText = `
         position: absolute;
@@ -214,14 +240,11 @@ const startGame = async () => {
             if (cmd === "enviar") { processQueue(player, board); return; }
             commandQueue.push(cmd);
             updateQueueDisplay();
-            moveCounter= commandQueue.length;
+            moveCounter = commandQueue.length;
             updateMoveCounter();
         };
         buttonsContainer.appendChild(btn);
     });
-
-    
-
 
     const undoBtn = document.createElement('button');
     undoBtn.innerText = 'DESHACER';
@@ -241,9 +264,6 @@ const startGame = async () => {
     undoBtn.onclick = () => { commandQueue.pop(); updateQueueDisplay(); };
     buttonsContainer.appendChild(undoBtn);
 
-    // -----------------------
-    // CONTADOR DE MOVIMIENTOS
-    // -----------------------
     moveCounterCard = document.createElement('div');
     moveCounterCard.style.cssText = `
         position: absolute;
@@ -271,7 +291,13 @@ const startGame = async () => {
 // -----------------------
 const ready = () => {
     new Pane({
-        content: new Label({ text: 'Welcome clever traveler!', size: 70, font: 'Macondo Swash Caps', color: 'yellow' }).noMouse(),
+        content: new Label({
+            text: 'Bienvenidos a la Aventura de la Evita',
+            size: 50,
+            font: 'Macondo Swash Caps',
+            color: 'yellow',
+            lineWidth: 500
+        }).noMouse(),
         backgroundColor: purple
     }).show(startGame);
 };
