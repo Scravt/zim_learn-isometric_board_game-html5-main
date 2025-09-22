@@ -16,7 +16,7 @@ const processQueue = async (player, board) => {
     isProcessing = true;
     while (commandQueue.length > 0) {
         const nextCommand = commandQueue.shift();
-        updateQueueDisplay();
+       // updateQueueDisplay();
         await doCommand(nextCommand, player, board);
         await new Promise(r => setTimeout(r, 500));
     }
@@ -55,8 +55,7 @@ const doCommand = async (command, player, board) => {
     if (tileData === OBSTACLE || tileData === LANTERN) return;
 
     board.moveTo(player, newCol, newRow);
-    moveCounter++;
-    updateMoveCounter();
+    
     await new Promise(r => setTimeout(r, 300));
 };
 
@@ -177,11 +176,13 @@ const startGame = async () => {
         padding: 5px;
         border-radius: 8px;
         font-family: monospace;
+        margin-top:20px;
     `;
     sidePanel.appendChild(queueList);
 
     const buttonsContainer = document.createElement('div');
-    buttonsContainer.style.cssText = `display:flex; flex-direction: column; gap: 8px; margin-top:10px;`;
+    buttonsContainer.id = 'buttonsContainer';
+    buttonsContainer.style.cssText = `display:flex; flex-direction: column; gap: 8px; margin-top:10px; `;
     sidePanel.appendChild(buttonsContainer);
 
     const updateQueueDisplay = () => {
@@ -195,6 +196,7 @@ const startGame = async () => {
 
     COMMANDS.forEach(cmd => {
         const btn = document.createElement('button');
+        btn.className = cmd;
         btn.innerText = cmd.toUpperCase();
         btn.style.cssText = `
             padding: 6px 10px;
@@ -205,16 +207,25 @@ const startGame = async () => {
             border-radius: 6px;
             cursor: pointer;
         `;
+        if (cmd === "enviar") {
+            btn.style.backgroundColor = '#4CAF50';
+        }
         btn.onclick = () => {
             if (cmd === "enviar") { processQueue(player, board); return; }
             commandQueue.push(cmd);
             updateQueueDisplay();
+            moveCounter= commandQueue.length;
+            updateMoveCounter();
         };
         buttonsContainer.appendChild(btn);
     });
 
+    
+
+
     const undoBtn = document.createElement('button');
     undoBtn.innerText = 'DESHACER';
+    undoBtn.id = 'DESHACER';
     undoBtn.style.cssText = `
         padding: 6px 10px;
         font-size: 12px;
@@ -223,6 +234,9 @@ const startGame = async () => {
         border: none;
         border-radius: 6px;
         cursor: pointer;
+        position: absolute;
+        top:0;
+        right:0;
     `;
     undoBtn.onclick = () => { commandQueue.pop(); updateQueueDisplay(); };
     buttonsContainer.appendChild(undoBtn);

@@ -1,0 +1,12 @@
+#buttonsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    position: relative
+}
+
+#DESHACER {
+    position:absolute ;
+    top: 0 ;
+    }
