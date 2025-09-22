@@ -1,0 +1,18 @@
+[
+	{
+		"name": "agua",
+		"src": "./img/ground/agua.png"
+	},
+	{
+		"name": "lava",
+		"src": "./img/ground/lava.png"
+	},
+	{
+		"name": "pasto",
+		"src": "./img/ground/pasto.png"
+	},
+	{
+		"name": "tierra",
+		"src": "./img/ground/tierra.png"
+	}
+]
