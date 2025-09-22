@@ -9,7 +9,7 @@ let moveCounter = 0;
 let moveCounterCard;
 
 // -----------------------
-// FUNCIÓN PARA LANZAR CONFETTI
+// FUNCIÓN PARA LANZAR CONFETTI (Victoria)
 // -----------------------
 const lanzarConfetti = () => {
     const duration = 3000; // 3 segundos
@@ -29,16 +29,82 @@ const lanzarConfetti = () => {
 };
 
 // -----------------------
+// ANIMACIÓN DE DERROTA
+// -----------------------
+const animacionDerrota = () => {
+    const body = document.body;
+    body.style.transition = "transform 0.1s";
+    let i = 0;
+
+    // Temblor de pantalla
+    const interval = setInterval(() => {
+        const x = (i % 2 === 0 ? -10 : 10);
+        body.style.transform = `translate(${x}px, 0px)`;
+        i++;
+        if (i > 5) {
+            clearInterval(interval);
+            body.style.transform = "translate(0,0)";
+        }
+    }, 100);
+
+    // Partículas grises que caen (simulando "derrota")
+    const duration = 1500;
+    const end = Date.now() + duration;
+
+    const particles = () => {
+        confetti({
+            particleCount: 3,
+            spread: 60,
+            startVelocity: 20,
+            colors: ['#555', '#777', '#999'],
+            origin: { x: Math.random(), y: 0 } // caen desde arriba
+        });
+        if (Date.now() < end) {
+            requestAnimationFrame(particles);
+        }
+    };
+    particles();
+};
+
+// -----------------------
 // PROCESAMIENTO SECUENCIAL DE COMANDOS
 // -----------------------
 const processQueue = async (player, board) => {
     if (isProcessing || commandQueue.length === 0) return;
     isProcessing = true;
+
+    let orbeAlcanzado = false; // rastrea si se consiguió el orbe
+
     while (commandQueue.length > 0) {
         const nextCommand = commandQueue.shift();
         await doCommand(nextCommand, player, board);
+
+        // Verificar si ya llegó al orbe
+        const currentCol = player.boardCol;
+        const currentRow = player.boardRow;
+        if ((currentCol === 7 && currentRow === 6) || (currentCol === 6 && currentRow === 7)) {
+            orbeAlcanzado = true;
+        }
+
         await new Promise(r => setTimeout(r, 500));
     }
+
+    // Si terminó la cola y no consiguió el orbe → derrota
+    if (!orbeAlcanzado) {
+        animacionDerrota();
+
+        new Pane({
+            content: new Label({
+                text: '¡Lo siento! No has llegado a tu objetivo',
+                size: 45,
+                font: 'Macondo Swash Caps',
+                color: 'white',
+                lineWidth: 500
+            }).noMouse(),
+            backgroundColor: 'red'
+        }).show();
+    }
+
     isProcessing = false;
 };
 
@@ -54,7 +120,7 @@ const doCommand = async (command, player, board) => {
         if ((currentCol === 7 && currentRow === 6) || (currentCol === 6 && currentRow === 7)) {
             console.log('¡ORBE RECOGIDO!');
 
-            // Lanzar confetti en toda la pantalla
+            // Lanzar confetti
             lanzarConfetti();
 
             // Mostrar Pane de victoria
@@ -63,10 +129,10 @@ const doCommand = async (command, player, board) => {
                     text: 'Felicitaciones. Has conseguido el tesoro en: ' + moveCounter + ' movimientos',
                     size: 50,
                     font: 'Macondo Swash Caps',
-                    color: 'yellow',
+                    color: 'black',
                     lineWidth: 500
                 }).noMouse(),
-                backgroundColor: purple
+                backgroundColor: green
             }).show();
         }
         await new Promise(r => setTimeout(r, 800));
@@ -83,11 +149,14 @@ const doCommand = async (command, player, board) => {
         default: return;
     }
 
+    // Validaciones de movimiento
     if (newCol < 0 || newCol >= board.cols || newRow < 0 || newRow >= board.rows) return;
     const targetTile = board.getTile(newCol, newRow);
     const tileData = board.getData(targetTile);
+
     if (tileData === OBSTACLE || tileData === LANTERN) return;
 
+    // Mover al jugador
     board.moveTo(player, newCol, newRow);
 
     await new Promise(r => setTimeout(r, 300));
@@ -131,7 +200,7 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
 // INICIO DEL JUEGO
 // -----------------------
 const startGame = async () => {
-    new Label({ text: 'Aventura en la Evita', size: 50, font: 'Macondo Swash Caps', color: purple }).loc(20, 20);
+    new Label({ text: 'Aventuras en la Evita', size: 50, font: 'Macondo Swash Caps', color: white }).loc(20, 20);
 
     const cols = 8;
     const rows = 8;
