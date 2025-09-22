@@ -197,6 +197,24 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
 };
 
 // -----------------------
+// NUEVO: FUNCIÓN PARA ELEGIR PERSONAJE ALEATORIO
+// -----------------------
+const getRandomCharacter = async () => {
+    try {
+        const response = await fetch('./data/pjs.json');
+        const characters = await response.json();
+
+        // Seleccionar uno aleatorio
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        return characters[randomIndex].src;
+    } catch (error) {
+        console.error("Error cargando personajes:", error);
+        // fallback si algo falla
+        return './img/pj/pj1.png';
+    }
+};
+
+// -----------------------
 // INICIO DEL JUEGO
 // -----------------------
 const startGame = async () => {
@@ -216,11 +234,15 @@ const startGame = async () => {
         height: boardHeight
     }).center().sca(scaleFactor);
 
-    const pic = new Pic('person.png');
-    const player = new Container(pic.width, pic.height).reg(CENTER, pic.height - 30).sca(0.5);
-    pic.centerReg(player);
-    board.add(player, playerPos[0], playerPos[0]);
+    // ---- PERSONAJE ALEATORIO ----
+    const randomCharacterSrc = await getRandomCharacter();
+    const pic = new Pic(randomCharacterSrc); // usamos la imagen seleccionada
 
+    const player = new Container(pic.width, pic.height).reg(CENTER, pic.height +200).sca(0.07);
+    pic.centerReg(player);
+    board.add(player, playerPos[0], playerPos[1]);
+
+    // ---- OBSTÁCULOS ----
     obstacles.forEach(pos => {
         const tile = board.getTile(pos[0], pos[1]);
         board.setColor(tile, dark);
@@ -230,6 +252,7 @@ const startGame = async () => {
         board.add(tree, pos[0], pos[1]);
     });
 
+    // ---- LINTERNA ----
     const cover = new Pic('lantern.png');
     const orb = new Orb({ radius: cover.width * 0.3, color: yellow });
     const lantern = new Container({ width: cover.width, height: cover.height });
@@ -241,6 +264,7 @@ const startGame = async () => {
     lantern.orb.vis(false);
     board.add(lantern, orbPos[0], orbPos[1], LANTERN);
 
+    // ---- PANEL DE CONTROLES ----
     const sidePanel = document.createElement('div');
     sidePanel.style.cssText = `
         position: absolute;
