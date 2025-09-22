@@ -6,42 +6,29 @@ const COMMANDS = ['atras', 'adelante', 'izquierda', 'derecha', 'agarrar', "envia
 // -----------------------
 // SISTEMA MEJORADO - COLA DE COMANDOS
 // -----------------------
-const commandQueue = [];
+let commandQueue = [];
 let isProcessing = false;
 
-// Función para procesar la cola de comandos
+// Función para procesar la cola de comandos SECUENCIALMENTE
 const processQueue = async (player, board) => {
-    if (isProcessing || commandQueue.length === 0) {
-        return;
-    }
+    if (isProcessing || commandQueue.length === 0) return;
+
     isProcessing = true;
+    console.log(">>> Iniciando procesamiento secuencial de la cola...");
 
-    commandQueue.forEach(cmd =>{
-        console.log(`>>> Procesando comando de la cola: ${cmd}`);
-        setTimeout(() => {
-            doCommand(cmd, player, board);
-           
-        }, 1000);
-    });
-
-    /* while (commandQueue.length > 0) {
+    while (commandQueue.length > 0) {
         const nextCommand = commandQueue.shift();
         console.log(`>>> Procesando comando de la cola: ${nextCommand}`);
-        try {
-            await doCommand(nextCommand, player, board);
-        } catch (err) {
-            console.error('Error al procesar comando de la cola:', err);
-            isProcessing = false;
-            return;
-        }
+        await doCommand(nextCommand, player, board); // Espera a que termine
+        await new Promise(r => setTimeout(r, 500));  // Pequeña pausa entre comandos
     }
+
     isProcessing = false;
-    console.log('>>> Cola de comandos vacía. Procesador inactivo.', commandQueue.length); */
+    console.log('>>> Cola de comandos vacía. Procesador inactivo.');
 };
 
 // Función simple para ejecutar UN comando
 const doCommand = async (command, player, board) => {
-
     console.log(`>>> INICIANDO COMANDO: ${command}`);
     if (!player || !player.boardTile) {
         console.log('ERROR: Player no válido');
@@ -54,8 +41,7 @@ const doCommand = async (command, player, board) => {
 
     if (command === 'agarrar') {
         console.log('Ejecutando AGARRAR...');
-        const items = board.getItems(player.boardTile);
-        if (currentCol===7 && currentRow===6 || currentCol===6 && currentRow===7) {
+        if ((currentCol === 7 && currentRow === 6) || (currentCol === 6 && currentRow === 7)) {
             console.log('¡ORBE RECOGIDO!');
         } else {
             console.log('Nada que agarrar aquí.');
@@ -65,11 +51,11 @@ const doCommand = async (command, player, board) => {
         return;
     }
 
-    let newCol=player.boardCol;
-    let newRow=player.boardRow;
+    let newCol = currentCol;
+    let newRow = currentRow;
 
     switch (command) {
-        case 'adelante': newRow = currentRow +1 ; break;
+        case 'adelante': newRow = currentRow + 1; break;
         case 'atras': newRow = currentRow - 1; break;
         case 'izquierda': newCol = currentCol - 1; break;
         case 'derecha': newCol = currentCol + 1; break;
@@ -79,7 +65,7 @@ const doCommand = async (command, player, board) => {
     }
 
     console.log(`Intentando mover a: (${newCol}, ${newRow})`);
-    
+
     if (newCol < 0 || newCol >= board.cols || newRow < 0 || newRow >= board.rows) {
         console.log('MOVIMIENTO INVÁLIDO: Fuera del tablero');
         await new Promise(r => setTimeout(r, 500));
@@ -91,6 +77,7 @@ const doCommand = async (command, player, board) => {
     console.log(`Tile objetivo: (${newCol}, ${newRow})`, targetTile);
     const tileData = board.getData(targetTile);
     console.log('Datos del tile objetivo:', tileData);
+
     if (tileData === OBSTACLE || tileData === LANTERN) {
         console.log('MOVIMIENTO INVÁLIDO: Hay un obstáculo');
         await new Promise(r => setTimeout(r, 500));
@@ -99,24 +86,18 @@ const doCommand = async (command, player, board) => {
     }
 
     console.log('EJECUTANDO MOVIMIENTO...');
-    
-
-    // Actualizamos manualmente la posición del jugador después de la animación
-   
     board.moveTo(player, newCol, newRow);
-    console.log('board',board)
-    player.boardCol = newCol;
-    player.boardRow = newRow;
-
-   
+    console.log('board', board);
 
     console.log(`MOVIMIENTO COMPLETADO. Nueva posición: (${player.boardCol}, ${player.boardRow})`);
-    
     await new Promise(r => setTimeout(r, 300));
-    
+
     console.log('>>> COMANDO COMPLETADO');
 };
 
+// -----------------------
+// SISTEMA DE GENERACIÓN DE TABLERO
+// -----------------------
 const easyStar = new EasyStar.js();
 
 const isPathAvailable = (grid, startCol, startRow, goalCol, goalRow) => {
@@ -156,6 +137,9 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
     }
 };
 
+// -----------------------
+// INICIO DEL JUEGO
+// -----------------------
 const startGame = async () => {
     new Label({ text: 'Orbs of Order', size: 70, font: 'Macondo Swash Caps', color: purple }).loc(30, 30);
     const board = new Board({ backgroundColor: grey, indicatorBorderColor: light }).center();
@@ -164,13 +148,11 @@ const startGame = async () => {
     const { playerPos, orbPos, obstacles } = await generateBoardElements(cols, rows, 0.5);
 
     const pic = new Pic('person.png');
-    // <--- Cambio aquí: Se crea el personaje localmente en la función
     const player = new Container(pic.width, pic.height).reg(CENTER, pic.height - 30).sca(0.5);
     pic.centerReg(player);
-    
-    // <--- Cambio aquí: Se agrega el personaje al tablero y se inicializa la posición
+
     board.add(player, playerPos[0], playerPos[0]);
-    
+
     const transparentTreePositions = [[4, 3], [5, 7]];
     loop(transparentTreePositions, pos => board.add(new Tree().alp(0.8), pos[0], pos[1]));
 
@@ -198,6 +180,7 @@ const startGame = async () => {
         board.setData(tile, OBSTACLE);
     });
 
+    // Controles
     const controlsContainer = document.createElement('div');
     controlsContainer.style.cssText = `
         position: absolute;
@@ -228,33 +211,34 @@ const startGame = async () => {
             transition: all 0.2s;
             user-select: none;
         `;
-        
-        // <--- Cambio aquí: La función ahora solo añade el comando a la cola y luego llama a addCommand
+
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopImmediatePropagation();
             console.log(`\n=== CLICK EN BOTÓN: ${cmd} ===`);
-              if(cmd === "enviar"){
-                processQueue(player, board);
-                return;}
+            
+            if (cmd === "enviar") {
+                processQueue(player, board); // Inicia el procesamiento
+                return;
+            }
+
             commandQueue.push(cmd);
             console.log(`Comando '${cmd}' añadido a la cola. Cola actual:`, commandQueue);
-          
-            //processQueue(player, board);
         });
-        
+
         btn.addEventListener('mouseover', () => {
             btn.style.backgroundColor = '#1976D2';
         });
-        
+
         btn.addEventListener('mouseout', () => {
             btn.style.backgroundColor = '#2196F3';
         });
-        
+
         controlsContainer.appendChild(btn);
         buttons.push(btn);
     });
 
+    // Panel debug
     const debugPanel = document.createElement('div');
     debugPanel.style.cssText = `
         position: absolute;
@@ -285,7 +269,7 @@ const startGame = async () => {
             Cola: ${queueStatus}<br>
             Procesador: ${isProcessing ? '🔴 ACTIVO' : '🟢 INACTIVO'}
         `;
-        
+
         buttons.forEach(btn => {
             if (isProcessing) {
                 btn.style.backgroundColor = '#666';
@@ -299,6 +283,7 @@ const startGame = async () => {
         });
     }, 100);
 
+    // Botón reset
     const resetBtn = document.createElement('button');
     resetBtn.innerText = '🔄 RESET';
     resetBtn.style.cssText = `
@@ -318,9 +303,11 @@ const startGame = async () => {
         console.log('SISTEMA DESBLOQUEADO MANUALMENTE Y COLA VACIADA');
     };
     document.body.appendChild(resetBtn);
+
     console.log('🎮 JUEGO INICIADO - Sistema de cola de comandos activo');
 };
 
+// Inicialización
 const ready = () => {
     new Pane({
         content: new Label({ text: 'Welcome clever traveler!', size: 70, font: 'Macondo Swash Caps', color: 'yellow' }).noMouse(),
