@@ -4,7 +4,7 @@ export const setupBoard = (board, obstaclePositions) => {
   // Colocar obstáculos
   obstaclePositions.forEach(obstaclePosition => {
     const tile = board.getTile(obstaclePosition[0], obstaclePosition[1]);
-    board.setColor(tile, dark);
+    board.setColor(tile, red);
     board.setData(tile, OBSTACLE);
   });
 

@@ -1,6 +1,7 @@
 import { OBSTACLE, LANTERN, getPath, ensureLanternAccessibility, setupIsometricScaling } from './modules/obstacles.js';
 import { setupBoard } from './modules/boardGen.js';
 import { loadCharacterData, getRandomCharacter, getCharacterAssets } from './modules/pjs.js';
+import { initOrders } from './screens/orders.js';
 
 let path; // Mantener referencia global a la ruta
 
@@ -22,7 +23,7 @@ const startGame = () => {
   const pic = new Pic(randomCharacterSrc);
 
   const player = new Container(pic.width, pic.height)
-    .reg(CENTER, pic.height+200)
+    .reg(CENTER, pic.height + 200)
     .sca(0.08);
 
   pic.centerReg(player);
@@ -110,6 +111,9 @@ const startGame = () => {
     }
     S.update();
   });
+
+  // ---- INICIALIZAR PANEL DE ÓRDENES ----
+  initOrders(board, player,lanternPosition);
 };
 
 // Ready
