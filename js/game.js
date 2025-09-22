@@ -150,7 +150,7 @@ const startGame = async () => {
     const sidePanel = document.createElement('div');
     sidePanel.style.cssText = `
         position: absolute;
-        top: 20px;
+        bottom: 20px;
         left: 10px;
         width: 180px;
         display: flex;
@@ -169,6 +169,7 @@ const startGame = async () => {
         display: flex;
         flex-direction: column;
         gap: 5px;
+        height: 600px;
         max-height: 50%; 
         overflow-y: auto;
         background: #333;
@@ -180,7 +181,7 @@ const startGame = async () => {
     sidePanel.appendChild(queueList);
 
     const buttonsContainer = document.createElement('div');
-    buttonsContainer.style.cssText = `display: flex; flex-direction: column; gap: 8px; margin-top:10px;`;
+    buttonsContainer.style.cssText = `display:flex; flex-direction: column; gap: 8px; margin-top:10px;`;
     sidePanel.appendChild(buttonsContainer);
 
     const updateQueueDisplay = () => {
