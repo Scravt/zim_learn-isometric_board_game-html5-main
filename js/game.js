@@ -160,8 +160,7 @@ const startGame = async () => {
     loop(treePositions, pos => board.add(new Tree(), pos[0], pos[1]));
 
     const orbColor = yellow;
-    new Circle({ radius: 20, color: orbColor }).pos({ x: 40, y: 40, horizontal: RIGHT, vertical: BOTTOM });
-    new Label({ text: 'Find and reveal the orb!', size: 40, font: 'Macondo Swash Caps', color: 'purple' }).loc({ x: 70, y: 690 });
+ 
 
     const cover = new Pic('lantern.png');
     const orb = new Orb({ radius: cover.width * 0.3, color: orbColor });
@@ -254,7 +253,7 @@ const startGame = async () => {
     `;
     document.body.appendChild(debugPanel);
 
-    setInterval(() => {
+   /*  setInterval(() => {
         const queueStatus = commandQueue.length > 0 ? `🔴 ${commandQueue.length} PENDIENTES` : '🟢 VACÍA';
         const playerMoving = player.moving ? '🔴 MOVIENDO' : '🟢 QUIETO';
         
@@ -281,7 +280,7 @@ const startGame = async () => {
                 btn.style.opacity = '1';
             }
         });
-    }, 100);
+    }, 100); */
 
     // Botón reset
     const resetBtn = document.createElement('button');
