@@ -100,17 +100,22 @@ const generateBoardElements = async (cols, rows, obstacleRatio = 0.5) => {
 const startGame = async () => {
     new Label({ text: 'Orbs of Order', size: 50, font: 'Macondo Swash Caps', color: purple }).loc(20, 20);
 
-    // Tablero más pequeño
-    const board = new Board({
-        backgroundColor: grey,
-        indicatorBorderColor: light,
-        width: 600,
-        height: 600
-    }).center();
-
     const cols = 8;
     const rows = 8;
     const { playerPos, orbPos, obstacles } = await generateBoardElements(cols, rows, 0.5);
+
+    // -----------------------
+    // TABLERO ESCALADO
+    // -----------------------
+    const boardWidth = 600;
+    const boardHeight = 600;
+    const scaleFactor = 0.7; // reduce tablero manteniendo proporciones
+    const board = new Board({
+        backgroundColor: grey,
+        indicatorBorderColor: light,
+        width: boardWidth,
+        height: boardHeight
+    }).center().sca(scaleFactor);
 
     const pic = new Pic('person.png');
     const player = new Container(pic.width, pic.height).reg(CENTER, pic.height - 30).sca(0.5);
@@ -155,7 +160,7 @@ const startGame = async () => {
         padding: 10px;
         border-radius: 12px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-        max-height: 50vh; /* medio de la pantalla */
+        max-height: 50vh;
     `;
     document.body.appendChild(sidePanel);
 
@@ -187,7 +192,6 @@ const startGame = async () => {
         });
     };
 
-    // Botones
     COMMANDS.forEach(cmd => {
         const btn = document.createElement('button');
         btn.innerText = cmd.toUpperCase();
@@ -208,7 +212,6 @@ const startGame = async () => {
         buttonsContainer.appendChild(btn);
     });
 
-    // Botón Deshacer
     const undoBtn = document.createElement('button');
     undoBtn.innerText = 'DESHACER';
     undoBtn.style.cssText = `
@@ -233,7 +236,7 @@ const startGame = async () => {
         right: 20px;
         width: 120px;
         height: 100px;
-        background: #6a1b9a;
+        background: #333;
         border-radius: 10px;
         display: flex;
         justify-content: center;
