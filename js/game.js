@@ -253,7 +253,7 @@ const startGame = async () => {
     });
 
     // ---- LINTERNA ----
-    const cover = new Pic('./img/price/cofre.png');
+    const cover = new Pic("./img/price/cofre.png");
     const orb = new Orb({ radius: cover.width * 0.3, color: yellow });
     const lantern = new Container({ width: cover.width, height: cover.height });
     cover.addTo(lantern);
