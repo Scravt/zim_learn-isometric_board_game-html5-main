@@ -1,0 +1,34 @@
+[
+  {
+    "name": "aloe",
+    "src": "./img/obstacle/aloe.png"
+  },
+  {
+    "name": "arbol",
+    "src": "./img/obstacle/arbol.png"
+  },
+  {
+    "name": "arbusto",
+    "src": "./img/obstacle/arbusto.png"
+  },
+  {
+    "name": "base",
+    "src": "./img/obstacle/base.png"
+  },
+  {
+    "name": "cartel",
+    "src": "./img/obstacle/cartel.png"
+  },
+  {
+    "name": "cristal",
+    "src": "./img/obstacle/cristal.png"
+  },
+  {
+    "name": "piedra-magica",
+    "src": "./img/obstacle/piedra-magica.png"
+  },
+  {
+    "name": "puente",
+    "src": "./img/obstacle/puente.png"
+  }
+]
