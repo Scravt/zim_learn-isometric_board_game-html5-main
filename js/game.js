@@ -9,25 +9,73 @@ const COMMANDS = ['atras', 'adelante', 'izquierda', 'derecha', 'agarrar', "envia
 let commandQueue = [];
 let isProcessing = false;
 
-// Función para procesar la cola de comandos SECUENCIALMENTE
+// Contenedor y función de actualizacion de la cola (GLOBAL)
+let queueDisplay = null;
+const updateQueueDisplay = () => {
+    if (!queueDisplay) return;
+    if (commandQueue.length === 0) {
+        queueDisplay.innerHTML = '<strong>Cola de Comandos:</strong> (vacía)';
+    } else {
+        const items = commandQueue.map((c, i) => `${i + 1}. ${c}`).join(' ➡️ ');
+        queueDisplay.innerHTML = `<strong>Cola de Comandos:</strong><br>${items}`;
+    }
+};
+
+// -----------------------
+// CONTADOR DE MOVIMIENTOS
+// -----------------------
+let moveCount = 0;
+let moveCounterCard = null;
+
+const updateMoveCounter = () => {
+    if (!moveCounterCard) return;
+    moveCounterCard.innerHTML = `
+        <div style="font-size:14px; color:white;">Movimientos</div>
+        <div style="font-size:24px; font-weight:bold; color:black;">${moveCount}</div>
+    `;
+};
+
+const incrementMoveCounter = () => {
+    moveCount++;
+    updateMoveCounter();
+};
+
+// -----------------------
+// PROCESAMIENTO DE COMANDOS
+// -----------------------
 const processQueue = async (player, board) => {
-    if (isProcessing || commandQueue.length === 0) return;
+    if (isProcessing) return;
+    if (commandQueue.length === 0) {
+        updateQueueDisplay();
+        return;
+    }
 
     isProcessing = true;
     console.log(">>> Iniciando procesamiento secuencial de la cola...");
+    updateQueueDisplay();
 
-    while (commandQueue.length > 0) {
-        const nextCommand = commandQueue.shift();
-        console.log(`>>> Procesando comando de la cola: ${nextCommand}`);
-        await doCommand(nextCommand, player, board); // Espera a que termine
-        await new Promise(r => setTimeout(r, 500));  // Pequeña pausa entre comandos
+    try {
+        while (commandQueue.length > 0) {
+            const nextCommand = commandQueue.shift();
+            updateQueueDisplay();
+            console.log(`>>> Procesando comando de la cola: ${nextCommand}`);
+            try {
+                await doCommand(nextCommand, player, board); 
+            } catch (errCmd) {
+                console.error('Error procesando comando:', nextCommand, errCmd);
+            }
+            await new Promise(r => setTimeout(r, 500));
+        }
+    } finally {
+        isProcessing = false;
+        console.log('>>> Cola de comandos vacía. Procesador inactivo.');
+        updateQueueDisplay();
     }
-
-    isProcessing = false;
-    console.log('>>> Cola de comandos vacía. Procesador inactivo.');
 };
 
-// Función simple para ejecutar UN comando
+// -----------------------
+// EJECUTAR UN COMANDO
+// -----------------------
 const doCommand = async (command, player, board) => {
     console.log(`>>> INICIANDO COMANDO: ${command}`);
     if (!player || !player.boardTile) {
@@ -37,17 +85,16 @@ const doCommand = async (command, player, board) => {
 
     const currentCol = player.boardCol;
     const currentRow = player.boardRow;
-    console.log(`Posición actual: (${currentCol}, ${currentRow})`);
 
     if (command === 'agarrar') {
         console.log('Ejecutando AGARRAR...');
         if ((currentCol === 7 && currentRow === 6) || (currentCol === 6 && currentRow === 7)) {
             console.log('¡ORBE RECOGIDO!');
+            incrementMoveCounter(); // ✅ Contamos como movimiento válido
         } else {
             console.log('Nada que agarrar aquí.');
         }
         await new Promise(r => setTimeout(r, 800));
-        console.log('>>> COMANDO AGARRAR COMPLETADO');
         return;
     }
 
@@ -64,35 +111,26 @@ const doCommand = async (command, player, board) => {
             return;
     }
 
-    console.log(`Intentando mover a: (${newCol}, ${newRow})`);
-
+    // Validación de límites
     if (newCol < 0 || newCol >= board.cols || newRow < 0 || newRow >= board.rows) {
         console.log('MOVIMIENTO INVÁLIDO: Fuera del tablero');
         await new Promise(r => setTimeout(r, 500));
-        console.log('>>> COMANDO COMPLETADO (movimiento inválido)');
         return;
     }
 
     const targetTile = board.getTile(newCol, newRow);
-    console.log(`Tile objetivo: (${newCol}, ${newRow})`, targetTile);
     const tileData = board.getData(targetTile);
-    console.log('Datos del tile objetivo:', tileData);
 
     if (tileData === OBSTACLE || tileData === LANTERN) {
         console.log('MOVIMIENTO INVÁLIDO: Hay un obstáculo');
         await new Promise(r => setTimeout(r, 500));
-        console.log('>>> COMANDO COMPLETADO (obstáculo)');
         return;
     }
 
-    console.log('EJECUTANDO MOVIMIENTO...');
+    // Movimiento válido
     board.moveTo(player, newCol, newRow);
-    console.log('board', board);
-
-    console.log(`MOVIMIENTO COMPLETADO. Nueva posición: (${player.boardCol}, ${player.boardRow})`);
+    incrementMoveCounter(); // ✅ Contamos solo cuando el jugador realmente se mueve
     await new Promise(r => setTimeout(r, 300));
-
-    console.log('>>> COMANDO COMPLETADO');
 };
 
 // -----------------------
@@ -151,7 +189,7 @@ const startGame = async () => {
     const player = new Container(pic.width, pic.height).reg(CENTER, pic.height - 30).sca(0.5);
     pic.centerReg(player);
 
-    board.add(player, playerPos[0], playerPos[0]);
+    board.add(player, playerPos[0], playerPos[1]);
 
     const transparentTreePositions = [[4, 3], [5, 7]];
     loop(transparentTreePositions, pos => board.add(new Tree().alp(0.8), pos[0], pos[1]));
@@ -159,16 +197,12 @@ const startGame = async () => {
     const treePositions = [[0, 5], [5, 0]];
     loop(treePositions, pos => board.add(new Tree(), pos[0], pos[1]));
 
-    const orbColor = yellow;
- 
-
     const cover = new Pic('lantern.png');
-    const orb = new Orb({ radius: cover.width * 0.3, color: orbColor });
+    const orb = new Orb({ radius: cover.width * 0.3, color: yellow });
     const lantern = new Container({ width: cover.width, height: cover.height });
     cover.addTo(lantern);
     orb.center(lantern);
     lantern.reg(CENTER, lantern.height - 30).sca(0.5);
-    lantern.cover = cover;
     lantern.orb = orb;
     lantern.orb.vis(false);
     board.add(lantern, orbPos[0], orbPos[1], LANTERN);
@@ -179,7 +213,29 @@ const startGame = async () => {
         board.setData(tile, OBSTACLE);
     });
 
-    // Controles
+    // -----------------------
+    // UI: CONTADOR DE MOVIMIENTOS
+    // -----------------------
+    moveCounterCard = document.createElement('div');
+    moveCounterCard.style.cssText = `
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #7e57c2;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        min-width: 90px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(moveCounterCard);
+    updateMoveCounter();
+
+    // -----------------------
+    // UI: CONTROLES
+    // -----------------------
     const controlsContainer = document.createElement('div');
     controlsContainer.style.cssText = `
         position: absolute;
@@ -192,8 +248,24 @@ const startGame = async () => {
         justify-content: center;
     `;
     document.body.appendChild(controlsContainer);
-    controlsContainer.innerHTML = '';
-    const buttons = [];
+
+    queueDisplay = document.createElement('div');
+    queueDisplay.style.cssText = `
+        position: absolute;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 16px;
+        min-width: 250px;
+        text-align: center;
+    `;
+    document.body.appendChild(queueDisplay);
+    updateQueueDisplay();
 
     COMMANDS.forEach(cmd => {
         const btn = document.createElement('button');
@@ -214,75 +286,44 @@ const startGame = async () => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            console.log(`\n=== CLICK EN BOTÓN: ${cmd} ===`);
             
             if (cmd === "enviar") {
-                processQueue(player, board); // Inicia el procesamiento
+                processQueue(player, board);
                 return;
             }
 
             commandQueue.push(cmd);
-            console.log(`Comando '${cmd}' añadido a la cola. Cola actual:`, commandQueue);
+            updateQueueDisplay();
         });
 
-        btn.addEventListener('mouseover', () => {
-            btn.style.backgroundColor = '#1976D2';
-        });
-
-        btn.addEventListener('mouseout', () => {
-            btn.style.backgroundColor = '#2196F3';
-        });
+        btn.addEventListener('mouseover', () => btn.style.backgroundColor = '#1976D2');
+        btn.addEventListener('mouseout', () => btn.style.backgroundColor = '#2196F3');
 
         controlsContainer.appendChild(btn);
-        buttons.push(btn);
     });
 
-    // Panel debug
-    const debugPanel = document.createElement('div');
-    debugPanel.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: rgba(0,0,0,0.8);
+    // Botón Deshacer
+    const undoBtn = document.createElement('button');
+    undoBtn.innerText = '⏪ DESHACER';
+    undoBtn.style.cssText = `
+        padding: 15px 25px;
+        font-size: 18px;
+        font-weight: bold;
+        background-color: #FF9800;
         color: white;
-        padding: 15px;
+        border: none;
         border-radius: 8px;
-        font-family: monospace;
-        font-size: 14px;
-        min-width: 250px;
+        cursor: pointer;
     `;
-    document.body.appendChild(debugPanel);
+    undoBtn.onclick = () => {
+        if (commandQueue.length > 0) {
+            commandQueue.pop();
+            updateQueueDisplay();
+        }
+    };
+    controlsContainer.appendChild(undoBtn);
 
-   /*  setInterval(() => {
-        const queueStatus = commandQueue.length > 0 ? `🔴 ${commandQueue.length} PENDIENTES` : '🟢 VACÍA';
-        const playerMoving = player.moving ? '🔴 MOVIENDO' : '🟢 QUIETO';
-        
-        debugPanel.innerHTML = `
-            <strong>🎮 ESTADO DEL JUEGO</strong><br>
-            ──────────────────────<br>
-            Jugador: ${playerMoving}<br>
-            Posición: (${player.boardCol || '?'}, ${player.boardRow || '?'})<br>
-            <br>
-            <strong>⏳ ESTADO DE LA COLA</strong><br>
-            ──────────────────────<br>
-            Cola: ${queueStatus}<br>
-            Procesador: ${isProcessing ? '🔴 ACTIVO' : '🟢 INACTIVO'}
-        `;
-
-        buttons.forEach(btn => {
-            if (isProcessing) {
-                btn.style.backgroundColor = '#666';
-                btn.style.cursor = 'not-allowed';
-                btn.style.opacity = '0.5';
-            } else {
-                btn.style.backgroundColor = '#2196F3';
-                btn.style.cursor = 'pointer';
-                btn.style.opacity = '1';
-            }
-        });
-    }, 100); */
-
-    // Botón reset
+    // Botón Reset
     const resetBtn = document.createElement('button');
     resetBtn.innerText = '🔄 RESET';
     resetBtn.style.cssText = `
@@ -299,11 +340,11 @@ const startGame = async () => {
     resetBtn.onclick = () => {
         commandQueue = [];
         isProcessing = false;
-        console.log('SISTEMA DESBLOQUEADO MANUALMENTE Y COLA VACIADA');
+        moveCount = 0;
+        updateMoveCounter();
+        updateQueueDisplay();
     };
     document.body.appendChild(resetBtn);
-
-    console.log('🎮 JUEGO INICIADO - Sistema de cola de comandos activo');
 };
 
 // Inicialización
@@ -316,5 +357,4 @@ const ready = () => {
 
 const assets = ['person.png', 'lantern.png', 'gf_Macondo Swash Caps'];
 const assetsPath = 'https://zimjs.org/assets/';
-
 new Frame({ scaling: FIT, width: 1024, height: 768, color: 'black', outerColor: dark, ready, assets, path: assetsPath });
