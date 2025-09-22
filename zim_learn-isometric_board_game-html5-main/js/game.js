@@ -1,12 +1,12 @@
 // Tile data
 const OBSTACLE = 'obstacle';
 const LANTERN = 'lantern';
-const COMMANDS = ['atras', 'adelante', 'izquierda', 'derecha', 'agarrar'];
+const COMMANDS = ['atras', 'adelante', 'izquierda', 'derecha', 'agarrar', "enviar"];
 
 // -----------------------
 // SISTEMA MEJORADO - COLA DE COMANDOS
 // -----------------------
-let commandQueue = [];
+const commandQueue = [];
 let isProcessing = false;
 
 // Función para procesar la cola de comandos
@@ -15,7 +15,16 @@ const processQueue = async (player, board) => {
         return;
     }
     isProcessing = true;
-    while (commandQueue.length > 0) {
+
+    commandQueue.forEach(cmd =>{
+        console.log(`>>> Procesando comando de la cola: ${cmd}`);
+        setTimeout(() => {
+            doCommand(cmd, player, board);
+           
+        }, 1000);
+    });
+
+    /* while (commandQueue.length > 0) {
         const nextCommand = commandQueue.shift();
         console.log(`>>> Procesando comando de la cola: ${nextCommand}`);
         try {
@@ -27,7 +36,7 @@ const processQueue = async (player, board) => {
         }
     }
     isProcessing = false;
-    console.log('>>> Cola de comandos vacía. Procesador inactivo.', commandQueue.length);
+    console.log('>>> Cola de comandos vacía. Procesador inactivo.', commandQueue.length); */
 };
 
 // Función simple para ejecutar UN comando
@@ -96,6 +105,8 @@ const doCommand = async (command, player, board) => {
    
     board.moveTo(player, newCol, newRow);
     console.log('board',board)
+    player.boardCol = newCol;
+    player.boardRow = newRow;
 
    
 
@@ -223,9 +234,13 @@ const startGame = async () => {
             e.preventDefault();
             e.stopImmediatePropagation();
             console.log(`\n=== CLICK EN BOTÓN: ${cmd} ===`);
+              if(cmd === "enviar"){
+                processQueue(player, board);
+                return;}
             commandQueue.push(cmd);
             console.log(`Comando '${cmd}' añadido a la cola. Cola actual:`, commandQueue);
-            processQueue(player, board);
+          
+            //processQueue(player, board);
         });
         
         btn.addEventListener('mouseover', () => {
